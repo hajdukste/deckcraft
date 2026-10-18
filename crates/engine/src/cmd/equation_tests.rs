@@ -56,6 +56,21 @@ fn an_equation_starts_as_a_selected_prompt_in_a_new_text_box() {
 }
 
 #[test]
+fn selected_text_becomes_the_equation() {
+    let mut s = Session::with_new();
+    s.execute("insert.textBox", &json!({"rect": [100, 100, 400, 80], "text": "so x^2 grows"})).unwrap();
+    s.execute("text.edit", &json!({})).unwrap();
+    s.execute("text.select", &json!({"anchor": [0, 3], "caret": [0, 6]})).unwrap();
+    s.execute("insert.equation", &json!({})).unwrap();
+    let r = runs(&s);
+    assert_eq!((r[1].text.as_str(), &r[1].kind), ("x^2", &RunKind::Math { omml: String::new() }));
+    assert_eq!((r[0].text.as_str(), r[2].text.as_str()), ("so ", " grows"));
+    // The caret is at its end, in it.
+    assert_eq!(sel(&s).ordered(), ((0, 6), (0, 6)));
+    assert!(at(&body(&s), &sel(&s)).is_some());
+}
+
+#[test]
 fn typing_edits_the_linear_text_and_space_turns_names_into_symbols() {
     let mut s = after_text("\\alpha ");
     type_keys(&mut s, "+x^2 \\nosuch ");

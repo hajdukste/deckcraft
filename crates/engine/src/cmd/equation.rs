@@ -22,7 +22,7 @@ pub fn specs() -> Vec<CommandSpec> {
         "Equation",
         ["Insert", "Symbols"],
         None,
-        "{} — an equation to type in place: at the insertion point (in place of the selection), else in a new text box",
+        "{} — an equation to type in place: at the insertion point (the selected text becomes it), else in a new text box",
         has_slide,
         insert
     )]
@@ -43,18 +43,23 @@ fn insert(s: &mut Session, _: &Value) -> Result<Value> {
     }
     super::text::edit_text(s, |body, t| {
         let (a, b) = t.ordered();
-        // In an equation, the new one goes after it.
-        let at = match at(body, t) {
-            Some((_, _, e)) => (a.0, e),
-            None => ed::delete(body, a, b),
+        // In an equation, the new one goes after it; selected text becomes the equation.
+        let (at, text) = match at(body, t) {
+            Some((_, _, e)) => ((a.0, e), String::new()),
+            None => {
+                let text = ed::text_range(body, a, b).replace('\n', " ").trim().to_string();
+                (ed::delete(body, a, b), text)
+            }
         };
         if body.paragraphs.is_empty() {
             body.paragraphs.push(Paragraph::default());
         }
-        let run = Run { text: PROMPT.into(), props: ed::props_at(body, at), kind: RunKind::Math { omml: String::new() } };
+        let prompt = text.is_empty();
+        let text = if prompt { PROMPT.to_string() } else { text };
+        let run = Run { text, props: ed::props_at(body, at), kind: RunKind::Math { omml: String::new() } };
         t.caret =
             ed::insert_body(body, at, &TextBody { paragraphs: vec![Paragraph { runs: vec![run], ..Default::default() }], ..Default::default() });
-        t.anchor = at;
+        t.anchor = if prompt { at } else { t.caret };
     })?;
     let t = s.doc()?.selection.text.clone().unwrap_or_default();
     Ok(json!({"id": t.shape, "anchor": [t.anchor.0, t.anchor.1], "caret": [t.caret.0, t.caret.1]}))

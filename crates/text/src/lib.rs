@@ -2192,8 +2192,8 @@ fn layout_scaled(ctx: &Ctx, shape: &Shape, body: &TextBody, bp: &BodyProps, opts
     out
 }
 
-/// Draw equation `m` with its origin at `at`: a glyph run per face and size, and its rules. Only
-/// the first run maps its glyphs to the equation's characters, so its text is extracted once.
+/// Draw equation `m` with its origin at `at`: a glyph run per face and size, and its rules. Each
+/// glyph's cell is the equation's first character and the character the glyph draws.
 fn emit_math(out: &mut TextLayout, m: &math::MathBox, st: &Style, at: (f64, f64), para: usize, chars: (usize, usize)) {
     let first = out.runs.len();
     for g in &m.glyphs {
@@ -2221,12 +2221,9 @@ fn emit_math(out: &mut TextLayout, m: &math::MathBox, st: &Style, at: (f64, f64)
                 upright: false,
             });
         }
-        let mapped = out.runs.len() == first + 1;
         if let Some(r) = out.runs.last_mut() {
             r.glyphs.push((g.gid, at.0 + g.x, at.1 + g.y));
-            if mapped {
-                r.cells.push((chars.0, g.ch));
-            }
+            r.cells.push((chars.0, g.ch));
         }
     }
     for &(x0, y0, x1, y1) in &m.rules {

@@ -1498,8 +1498,9 @@ fn an_equation_is_laid_out_in_two_dimensions_as_one_character() {
     let math: Vec<_> = l.runs.iter().filter(|r| r.chars == (5, 8)).collect();
     let ys: Vec<f64> = math.iter().flat_map(|r| r.glyphs.iter().map(|g| g.2)).collect();
     assert!(ys.iter().any(|y| *y < line.baseline - 5.0) && ys.iter().any(|y| *y > line.baseline + 5.0), "{ys:?}");
-    // Only one run maps the equation's glyphs to its text (extracted once).
-    assert_eq!(math.iter().filter(|r| !r.cells.is_empty()).count(), 1);
+    // Each glyph carries the character it draws.
+    assert!(math.iter().all(|r| r.cells.len() == r.glyphs.len()));
+    assert_eq!(math.iter().flat_map(|r| r.cells.iter().map(|c| c.1)).collect::<String>(), "ab");
     // A tall equation makes its line taller.
     let flat = lay(&with_equation("ab").0, &with_equation("ab").1, 800.0, 300.0);
     assert!(line.bottom - line.top > flat.lines[0].bottom - flat.lines[0].top);
