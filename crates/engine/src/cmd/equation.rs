@@ -2,12 +2,12 @@
 //!
 //! An equation is typed as its linear text (`a/b`, `x^2`, `\alpha`): it shows that way while the
 //! caret is in it and is laid out in two dimensions otherwise. The caret belongs to the equation
-//! on its left, as typing does; Right Arrow at an equation's end leaves it, so what is typed next
-//! is text after it, and Left Arrow there goes back in.
+//! on its left, as typing does, so before an equation it is outside; Right Arrow at an equation's
+//! end leaves it, so what is typed next is text after it, and Left Arrow there goes back in.
 
 use deckcraft_geom::Xfrm;
 use deckcraft_model::edit::{self as ed, Pos};
-use deckcraft_model::text::{Paragraph, Run, RunKind, RunProps, TextBody};
+use deckcraft_model::text::{Align, ParaProps, Paragraph, Run, RunKind, RunProps, TextBody};
 use serde_json::{Value, json};
 
 use super::*;
@@ -34,9 +34,11 @@ fn insert(s: &mut Session, _: &Value) -> Result<Value> {
         let size = s.doc()?.doc.slide_size;
         let mut shape = super::insert::new_text_box(Xfrm::new((size.width - 320.0) / 2.0, (size.height - 60.0) / 2.0, 320.0, 60.0), "");
         shape.name = "Equation".into();
-        // It grows with the equation rather than wrapping it.
+        // It grows with the equation rather than wrapping it, centred as PowerPoint sets a
+        // display equation.
         if let Some(t) = shape.text.as_mut() {
             t.body.wrap = Some(false);
+            t.paragraphs = vec![Paragraph { props: ParaProps { align: Some(Align::Center), ..Default::default() }, ..Default::default() }];
         }
         let id = super::insert::add_shape(s, "insert.equation", shape, true)?;
         s.select(|_, sel| sel.text = Some(TextSel { shape: id, ..Default::default() }))?;

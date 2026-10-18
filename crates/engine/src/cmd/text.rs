@@ -144,7 +144,8 @@ pub fn fit_text_box(s: &mut Session, id: ShapeId) -> Result<()> {
     fit_shrink_scale(s, id)?;
     let st = s.doc()?;
     let Some(sh) = st.shape(id).cloned() else { return Ok(()) };
-    let Some(body) = sh.text.clone() else { return Ok(()) };
+    // The text as the editor draws it (an equation being typed shows as its text).
+    let Some(body) = sh.text.as_ref().map(|b| as_edited(st, &TextSel { shape: id, ..Default::default() }, b).into_owned()) else { return Ok(()) };
     let doc = st.doc.clone();
     let sel = st.selection.clone();
     let Some(ctx) = ctx_for(&doc, &sel) else { return Ok(()) };
@@ -446,8 +447,9 @@ pub(crate) fn insert_text(s: &mut Session, text: &str, props: Option<RunProps>) 
         }
         let (a, b) = t.ordered();
         let at = ed::delete(body, a, b);
-        let left = t.left_math == Some(at) && a == b;
-        let props = props.clone().or_else(|| match (a != b, left) {
+        // Beside an equation (just left, or before one), text takes the text's formatting.
+        let beside = a == b && (t.left_math == Some(at) || ed::math_at(body, at, true).is_some_and(|m| m.1 == at.1));
+        let props = props.clone().or_else(|| match (a != b, beside) {
             (true, _) => Some(ed::props_at(body, at)),
             (_, true) => Some(super::equation::text_props(body, at)),
             _ => unlinked_at_link_end(body, at),

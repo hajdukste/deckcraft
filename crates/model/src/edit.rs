@@ -389,14 +389,14 @@ fn smart_space(body: &mut TextBody, at: Pos) -> Pos {
 }
 
 /// The equation at `pos`: (run index, first character, end character). A caret belongs to the run
-/// on its left (at a paragraph's start, the one on its right); `ahead` takes the run on its right
+/// on its left, so a caret before an equation is outside it; `ahead` takes the run on its right
 /// (where a selection starts, what Delete removes).
 pub fn math_at(body: &TextBody, pos: Pos, ahead: bool) -> Option<(usize, usize, usize)> {
     let p = body.paragraphs.get(pos.0)?;
     let mut start = 0;
     for (i, r) in p.runs.iter().enumerate() {
         let end = start + r.char_len();
-        let inside = if ahead || pos.1 == 0 { start <= pos.1 && pos.1 < end } else { start < pos.1 && pos.1 <= end };
+        let inside = if ahead { start <= pos.1 && pos.1 < end } else { start < pos.1 && pos.1 <= end };
         if inside {
             return matches!(r.kind, RunKind::Math { .. }).then_some((i, start, end));
         }
@@ -835,6 +835,11 @@ mod tests {
         assert_eq!(math_at(&b, (0, 4), false), Some((1, 1, 4)));
         assert_eq!(math_at(&b, (0, 4), true), None);
         assert_eq!(math_at(&b, (9, 0), false), None);
+        // Also before an equation that starts the paragraph.
+        let mut b = with_math();
+        b.paragraphs[0].runs.remove(0);
+        assert_eq!(math_at(&b, (0, 0), false), None);
+        assert_eq!(math_at(&b, (0, 0), true), Some((0, 0, 3)));
     }
 
     #[test]

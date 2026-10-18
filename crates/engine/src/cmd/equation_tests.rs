@@ -42,6 +42,7 @@ fn an_equation_starts_as_a_selected_prompt_in_a_new_text_box() {
     s.execute("insert.equation", &json!({})).unwrap();
     let r = &runs(&s)[0];
     assert_eq!((r.text.as_str(), &r.kind), (PROMPT, &RunKind::Math { omml: String::new() }));
+    assert_eq!(body(&s).paragraphs[0].props.align, Some(deckcraft_model::text::Align::Center));
     assert_eq!(sel(&s).ordered(), ((0, 0), (0, PROMPT.chars().count())));
     // Typing replaces the prompt, also with the caret inside it.
     s.execute("text.select", &json!({"anchor": [0, 4]})).unwrap();
@@ -53,6 +54,35 @@ fn an_equation_starts_as_a_selected_prompt_in_a_new_text_box() {
     s.execute("edit.undo", &json!({})).unwrap();
     s.execute("edit.undo", &json!({})).unwrap();
     assert_eq!(*s.doc().unwrap().doc, *before);
+}
+
+#[test]
+fn text_can_go_before_an_equation_that_starts_a_paragraph() {
+    let mut s = Session::with_new();
+    s.execute("insert.equation", &json!({})).unwrap();
+    type_keys(&mut s, "x^2");
+    s.execute("text.move", &json!({"to": "start"})).unwrap();
+    assert_eq!(at(&body(&s), &sel(&s)), None, "before the equation is outside it");
+    type_keys(&mut s, "so ");
+    let r = runs(&s);
+    // Ordinary text: AutoCorrect capitalises it.
+    assert_eq!((r[0].text.as_str(), &r[0].kind, r[1].text.as_str()), ("So ", &RunKind::Text, "x^2"));
+    // Enter there pushes the equation down.
+    s.execute("text.move", &json!({"to": "start"})).unwrap();
+    s.type_text("\n").unwrap();
+    assert_eq!(body(&s).text(), "\nSo x^2");
+}
+
+#[test]
+fn the_box_fits_the_equation_as_it_is_typed() {
+    let mut s = Session::with_new();
+    s.execute("insert.equation", &json!({})).unwrap();
+    type_keys(&mut s, "(a+b)/(c+d)+(e+f)/(g+h)");
+    let st = s.doc().unwrap();
+    let t = sel(&s);
+    let (l, _) = super::super::text::text_frame(st, &t).unwrap();
+    let w = st.shape(t.shape).and_then(|sh| sh.xfrm).unwrap().w;
+    assert!(l.lines[0].extent.1 - l.lines[0].extent.0 <= w, "the linear text fits its box");
 }
 
 #[test]
